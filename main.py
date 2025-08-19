@@ -32,6 +32,13 @@ def sats_constraints(grid, logging = False):
 
 numberList=[1,2,3,4,5,6,7,8,9]
 
+def grid_full(grid):
+    for i in range(9):
+        for j in range(9):
+            if grid[i][j] == 0:
+                return False
+    return True
+
 def fill_grid(grid):
     for i in range(9):
         for j in range(9):
@@ -46,7 +53,7 @@ def fill_grid(grid):
                 return False # no val found
     return True #All cells filled
 
-def solve_grid(grid):
+def solve_grid(grid, count = 0): #modify this to count the number of 
     for i in range(9):
         for j in range(9):
             if grid[i][j] == 0:
@@ -59,6 +66,18 @@ def solve_grid(grid):
                 return False # no val found
     return True #All cells filled
 
+def solve_backwards(grid):
+    for i in range(9):
+        for j in range(9):
+            if grid[i][j] == 0:
+                for val in range(9, 0, -1):
+                    grid[i][j] = val
+                    if sats_constraints(grid):
+                        if solve_backwards(grid):
+                            return True
+                    grid[i][j] = 0
+                return False # no val found
+    return True #All cells filled
 
 def generateValidPuzzle():
     #TODO test
@@ -68,9 +87,37 @@ def generateValidPuzzle():
     return entries
 
 
+def unique_solution(grid):
+    puzzle = grid.copy()
+    backwards_puzzle = [l.copy() for l in puzzle]
+    solve_grid(puzzle)
+    # print(backwards_puzzle)
+    solve_backwards(backwards_puzzle)
+    if puzzle == backwards_puzzle:
+        return True, puzzle
+    return False, puzzle
 
+def remove_cells(grid, misses = 1, max_gone = 40):
+    counter = 0
+    while misses > 0 and counter < max_gone:
+        counter += 1
+        print(f"current grid:{counter}")
+        print(grid)
+        #Select random nonempty cell
+        row = randint(0,8)
+        col = randint(0,8)
+        while grid[row][col]==0:
+            row = randint(0,8)
+            col = randint(0,8)
+        backup = grid[row][col]
+        grid[row][col] = 0
+        gridCopy = [l[:] for l in  grid]
+        if not unique_solution(gridCopy):
+            grid[row][col] = backup
+            misses -= 1
+    return grid
 
-# def r
+        
 
 
 
@@ -123,6 +170,22 @@ class SudokuApp:
                 entry.bind("<FocusIn>", lambda e, r=row, c=col: self.highlight_cells(r, c))
                 
                 self.entries[row][col] = entry
+
+        valid_puzzle = generateValidPuzzle()
+        print(valid_puzzle)
+        valid_puzzle = remove_cells(valid_puzzle) #TODO: change attempts to match difficulty
+        print(valid_puzzle) 
+        for i in range(len(valid_puzzle)):
+            for j in range(len(valid_puzzle[0])):
+                val = valid_puzzle[i][j]
+                entry = self.entries[i][j]
+                entry.delete(0)
+                
+                if val != 0:
+                    entry.insert(0,val)
+                    entry.config(state='readonly')
+        messagebox.showinfo("Info", f"Puzzle Generated")
+        
                     
 
     def highlight_cells(self, selected_row, selected_col):
@@ -161,8 +224,11 @@ class SudokuApp:
 
     def solve_stub(self):
         puzzle = self.convert_entries()
-        print(puzzle)
+        # unique, puzzle = unique_solution(puzzle)
         solve_grid(puzzle)
+        # if puzzle != backwards_puzzle:
+        # if not unique:
+            # messagebox.showinfo("Warn", f"Non-unique solution")
         
         for i in range(len(puzzle)):
             for j in range(len(puzzle[0])):
