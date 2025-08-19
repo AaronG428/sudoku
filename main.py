@@ -32,72 +32,17 @@ def sats_constraints(grid, logging = False):
 
 numberList=[1,2,3,4,5,6,7,8,9]
 
-def grid_full(grid):
-    for i in range(9):
-        for j in range(9):
-            if grid[i][j] == 0:
-                return False
-    return True
-
-def fill_grid(grid):
-    for i in range(9):
-        for j in range(9):
-            if grid[i][j] == 0:
-                shuffle(numberList)
-                for val in numberList:
-                    grid[i][j] = val
-                    if sats_constraints(grid):
-                        if fill_grid(grid):
-                            return True
-                    grid[i][j] = 0
-                return False # no val found
-    return True #All cells filled
-
-def solve_grid(grid, count = 0): #modify this to count the number of 
-    for i in range(9):
-        for j in range(9):
-            if grid[i][j] == 0:
-                for val in range(1,10):
-                    grid[i][j] = val
-                    if sats_constraints(grid):
-                        if solve_grid(grid):
-                            return True
-                    grid[i][j] = 0
-                return False # no val found
-    return True #All cells filled
-
-def solve_backwards(grid):
-    for i in range(9):
-        for j in range(9):
-            if grid[i][j] == 0:
-                for val in range(9, 0, -1):
-                    grid[i][j] = val
-                    if sats_constraints(grid):
-                        if solve_backwards(grid):
-                            return True
-                    grid[i][j] = 0
-                return False # no val found
-    return True #All cells filled
 
 def generateValidPuzzle():
     #TODO test
-    numberList.sort()
-    entries = [9*[0] for _ in range(9)]
-    fill_grid(entries)
+    # entries = [9*[0] for _ in range(9)]
+    entries = generate_full_sudoku()
+    remove_cells(entries)
     return entries
 
 
-def unique_solution(grid):
-    puzzle = grid.copy()
-    backwards_puzzle = [l.copy() for l in puzzle]
-    solve_grid(puzzle)
-    # print(backwards_puzzle)
-    solve_backwards(backwards_puzzle)
-    if puzzle == backwards_puzzle:
-        return True, puzzle
-    return False, puzzle
 
-def remove_cells(grid, misses = 1, max_gone = 40):
+def remove_cells(grid, misses = 1, max_gone = 80):
     counter = 0
     while misses > 0 and counter < max_gone:
         counter += 1
@@ -112,14 +57,93 @@ def remove_cells(grid, misses = 1, max_gone = 40):
         backup = grid[row][col]
         grid[row][col] = 0
         gridCopy = [l[:] for l in  grid]
-        if not unique_solution(gridCopy):
+        _, solutions_count = count_sudoku_solutions(gridCopy)
+        if solutions_count > 1:
             grid[row][col] = backup
             misses -= 1
     return grid
 
         
 
+def count_sudoku_solutions(grid):
+    count = [0]  # use a list so it's mutable inside nested function
+    out_grid = []
 
+    def is_valid(row, col, num):
+        # Check row and column
+        for i in range(9):
+            if grid[row][i] == num or grid[i][col] == num:
+                return False
+
+        # Check 3x3 box
+        box_row = row - row % 3
+        box_col = col - col % 3
+        for i in range(3):
+            for j in range(3):
+                if grid[box_row + i][box_col + j] == num:
+                    return False
+        return True
+
+    def solve(row=0, col=0):
+        if row == 9:
+            count[0] += 1
+            out_grid.append([l[:] for l in grid])
+            return
+
+        next_row, next_col = (row, col + 1) if col < 8 else (row + 1, 0)
+
+        if grid[row][col] != 0:
+            solve(next_row, next_col)
+        else:
+            for num in range(1, 10):
+                if is_valid(row, col, num):
+                    grid[row][col] = num
+                    solve(next_row, next_col)
+                    grid[row][col] = 0  # backtrack
+
+    solve()
+    print(f"out_grid:{out_grid[0]}")
+    return out_grid[0], count[0]
+
+import random
+
+def generate_full_sudoku():
+    board = [[0 for _ in range(9)] for _ in range(9)]
+
+    def is_valid(row, col, num):
+        # Check row and column
+        for i in range(9):
+            if board[row][i] == num or board[i][col] == num:
+                return False
+
+        # Check 3x3 box
+        box_row = row - row % 3
+        box_col = col - col % 3
+        for i in range(3):
+            for j in range(3):
+                if board[box_row + i][box_col + j] == num:
+                    return False
+        return True
+
+    def fill_cell(row=0, col=0):
+        if row == 9:
+            return True  # Grid complete
+
+        next_row, next_col = (row, col + 1) if col < 8 else (row + 1, 0)
+
+        nums = list(range(1, 10))
+        random.shuffle(nums)
+        for num in nums:
+            if is_valid(row, col, num):
+                board[row][col] = num
+                if fill_cell(next_row, next_col):
+                    return True
+                board[row][col] = 0  # backtrack
+
+        return False  # No valid digit
+
+    fill_cell()
+    return board
 
 
 class SudokuApp:
@@ -173,7 +197,7 @@ class SudokuApp:
 
         valid_puzzle = generateValidPuzzle()
         print(valid_puzzle)
-        valid_puzzle = remove_cells(valid_puzzle) #TODO: change attempts to match difficulty
+        valid_puzzle = remove_cells(valid_puzzle, misses = 5) #TODO: change attempts to match difficulty
         print(valid_puzzle) 
         for i in range(len(valid_puzzle)):
             for j in range(len(valid_puzzle[0])):
@@ -224,18 +248,18 @@ class SudokuApp:
 
     def solve_stub(self):
         puzzle = self.convert_entries()
-        # unique, puzzle = unique_solution(puzzle)
-        solve_grid(puzzle)
-        # if puzzle != backwards_puzzle:
-        # if not unique:
-            # messagebox.showinfo("Warn", f"Non-unique solution")
+
+        solution, count = count_sudoku_solutions(puzzle)
         
-        for i in range(len(puzzle)):
-            for j in range(len(puzzle[0])):
+        if count > 1:
+            messagebox.showinfo("Warn", f"Non-unique solution")
+        
+        for i in range(len(solution)):
+            for j in range(len(solution[0])):
                 entry = self.entries[i][j]
-                if entry.get() != puzzle[i][j]:
+                if entry.get() != solution[i][j]:
                     entry.delete(0)
-                    entry.insert(0,puzzle[i][j])
+                    entry.insert(0,solution[i][j])
         messagebox.showinfo("Info", f"Puzzle solved")
 
     def hint_stub(self):

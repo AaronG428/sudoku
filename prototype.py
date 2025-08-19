@@ -213,3 +213,4 @@ while attempts>0:
 
 
 print("Sudoku Grid Ready")
+sleep(10)
