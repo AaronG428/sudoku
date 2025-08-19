@@ -46,12 +46,31 @@ def fill_grid(grid):
                 return False # no val found
     return True #All cells filled
 
+def solve_grid(grid):
+    for i in range(9):
+        for j in range(9):
+            if grid[i][j] == 0:
+                for val in range(1,10):
+                    grid[i][j] = val
+                    if sats_constraints(grid):
+                        if solve_grid(grid):
+                            return True
+                    grid[i][j] = 0
+                return False # no val found
+    return True #All cells filled
+
+
 def generateValidPuzzle():
     #TODO test
     numberList.sort()
     entries = [9*[0] for _ in range(9)]
     fill_grid(entries)
     return entries
+
+
+
+
+# def r
 
 
 
@@ -102,6 +121,7 @@ class SudokuApp:
                 entry = tk.Entry(self.grid_frame, width=2, font=("Arial", 18), justify="center", bd=0)
                 entry.place(x=col * cell_size + 2, y=row * cell_size + 2, width=cell_size - 4, height=cell_size - 4)
                 entry.bind("<FocusIn>", lambda e, r=row, c=col: self.highlight_cells(r, c))
+                
                 self.entries[row][col] = entry
                     
 
@@ -109,10 +129,17 @@ class SudokuApp:
         for row in range(9):
             for col in range(9):
                 entry = self.entries[row][col]
+                pre_state = entry.cget('state')
+                # print(pre_state)
+                entry.config(state='normal')
                 if row == selected_row or col == selected_col or (row//3 == selected_row//3 and col//3 == selected_col//3):
-                    entry.configure(bg="#40c5d6")
+                    entry.config(bg="#406fd6")
+                    entry.config(readonlybackground="#406fd6")
                 else:
-                    entry.configure(bg="black")
+                    entry.config(bg="systemTextBackgroundColor")
+                    entry.config(readonlybackground="systemTextBackgroundColor")
+                # if(col%2==0):
+                entry.config(state = pre_state)
 
     def create_buttons(self):
         frame = tk.Frame(self.root)
@@ -128,11 +155,22 @@ class SudokuApp:
     def clear_board(self):
         for row in self.entries:
             for entry in row:
+                entry.config(state='normal')
                 entry.delete(0, tk.END)
                 # entry.configure(bg="white")
 
     def solve_stub(self):
-        messagebox.showinfo("Info", f"Solver not implemented yet! Difficulty: {self.difficulty.get()}")
+        puzzle = self.convert_entries()
+        print(puzzle)
+        solve_grid(puzzle)
+        
+        for i in range(len(puzzle)):
+            for j in range(len(puzzle[0])):
+                entry = self.entries[i][j]
+                if entry.get() != puzzle[i][j]:
+                    entry.delete(0)
+                    entry.insert(0,puzzle[i][j])
+        messagebox.showinfo("Info", f"Puzzle solved")
 
     def hint_stub(self):
         messagebox.showinfo("Info", f"Hint not implemented yet! Difficulty: {self.difficulty.get()}")
@@ -152,7 +190,8 @@ class SudokuApp:
                 entry = self.entries[i][j]
                 entry.delete(0)
                 entry.insert(0,valid_puzzle[i][j])
-                # entry.state(['disabled'])
+
+                # entry.config(state='readonly')
         messagebox.showinfo("Info", f"Puzzle Generated")
         
 
