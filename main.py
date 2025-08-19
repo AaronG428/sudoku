@@ -1,9 +1,12 @@
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
+import random
+from random import randint, shuffle
+import time
 
 #check distinct across dimension
-def dimension_check(grid=None, rowcode = '', colcode = '', condition = ''):
+def dimension_check(grid, logging = False, rowcode = '', colcode = '', condition = ''):
     for i in range(len(grid)):
         dist = set()
         for j in range(len(grid[0])):
@@ -13,23 +16,44 @@ def dimension_check(grid=None, rowcode = '', colcode = '', condition = ''):
             if val == 0:
                 continue
             if int(val) in dist:
-                print(f"{condition} condition violated: digit {val} at {(row,col)}")
+                if logging:
+                    print(f"{condition} condition violated: digit {val} at {(row,col)}")
                 return False 
             dist.add(int(val))
     return True
 
 #input: 9x9 list of ints
-def sats_constraints(grid):
-    rowcheck = dimension_check(grid, rowcode = 'i', colcode = 'j', condition = 'row')
-    colcheck = dimension_check(grid, rowcode = 'j', colcode = 'i', condition = 'col')
-    boxcheck = dimension_check(grid, rowcode = '3*(i//3) + j//3', colcode = '3*(i%3) + j%3', condition = 'box')
+def sats_constraints(grid, logging = False):
+    rowcheck = dimension_check(grid, logging, rowcode = 'i', colcode = 'j', condition = 'row')
+    colcheck = dimension_check(grid, logging, rowcode = 'j', colcode = 'i', condition = 'col')
+    boxcheck = dimension_check(grid, logging, rowcode = '3*(i//3) + j//3', colcode = '3*(i%3) + j%3', condition = 'box')
 
     return rowcheck and colcheck and boxcheck
 
+numberList=[1,2,3,4,5,6,7,8,9]
+
+def fill_grid(grid):
+    for i in range(9):
+        for j in range(9):
+            if grid[i][j] == 0:
+                shuffle(numberList)
+                for val in numberList:
+                    grid[i][j] = val
+                    if sats_constraints(grid):
+                        if fill_grid(grid):
+                            return True
+                    grid[i][j] = 0
+                return False # no val found
+    return True #All cells filled
+
 def generateValidPuzzle():
-    #TODO
-    entries = 0
-    pass
+    #TODO test
+    numberList.sort()
+    entries = [9*[0] for _ in range(9)]
+    fill_grid(entries)
+    return entries
+
+
 
 
 class SudokuApp:
@@ -52,6 +76,8 @@ class SudokuApp:
         tk.Button(self.root, text="Start Game", command=self.start_game, font=("Arial", 12)).pack(pady=20)
 
     def start_game(self):
+        seed = 42
+        random.seed(seed)
         self.clear_window()
         self.entries = [[None for _ in range(9)] for _ in range(9)]
         self.grid_frame = tk.Frame(self.root)
@@ -84,9 +110,9 @@ class SudokuApp:
             for col in range(9):
                 entry = self.entries[row][col]
                 if row == selected_row or col == selected_col or (row//3 == selected_row//3 and col//3 == selected_col//3):
-                    entry.configure(bg="#e0f7fa")
+                    entry.configure(bg="#40c5d6")
                 else:
-                    entry.configure(bg="white")
+                    entry.configure(bg="black")
 
     def create_buttons(self):
         frame = tk.Frame(self.root)
@@ -97,12 +123,13 @@ class SudokuApp:
         tk.Button(frame, text="Solve (stub)", command=self.solve_stub).pack(side=tk.LEFT, padx=5)
         tk.Button(frame, text="Hint (stub)", command=self.hint_stub).pack(side=tk.LEFT, padx=5)
         tk.Button(frame, text="Check Puzzle (test)", command=self.check_puzzle_test).pack(side=tk.LEFT, padx=5)
+        tk.Button(frame, text="Create Puzzle (test)", command=self.create_puzzle_test).pack(side=tk.LEFT, padx=5)
 
     def clear_board(self):
         for row in self.entries:
             for entry in row:
                 entry.delete(0, tk.END)
-                entry.configure(bg="white")
+                # entry.configure(bg="white")
 
     def solve_stub(self):
         messagebox.showinfo("Info", f"Solver not implemented yet! Difficulty: {self.difficulty.get()}")
@@ -117,6 +144,17 @@ class SudokuApp:
     def check_puzzle_test(self):
         valid_puzzle = sats_constraints(self.convert_entries())
         messagebox.showinfo("Info", f"Puzzle Valid: {valid_puzzle}")
+
+    def create_puzzle_test(self):
+        valid_puzzle = generateValidPuzzle()
+        for i in range(len(valid_puzzle)):
+            for j in range(len(valid_puzzle[0])):
+                entry = self.entries[i][j]
+                entry.delete(0)
+                entry.insert(0,valid_puzzle[i][j])
+                # entry.state(['disabled'])
+        messagebox.showinfo("Info", f"Puzzle Generated")
+        
 
     def convert_entries(self):
         mat =  [[val.get() for val in row] for row in self.entries]
